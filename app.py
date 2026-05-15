@@ -102,7 +102,7 @@ else:
     # For now, use all account balances as cash.
     # Later we can separate checking/savings vs credit cards/loans.
     cash_accounts = accounts_df[
-    accounts_df["subtype"].isin(["checking", "savings"])
+        accounts_df["subtype"].isin(["checking", "savings"])
 ]
 
 total_cash = cash_accounts["current_balance"].sum()
