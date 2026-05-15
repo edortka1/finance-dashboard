@@ -145,6 +145,74 @@ else:
 
     st.dataframe(obligations_df, use_container_width=True)
 
+
+# -----------------------------
+# Loan Payoff Planner
+# -----------------------------
+
+st.header("Loan Payoff Planner")
+
+loans_rows = supabase.table("loans").select("*").eq("active", True).execute().data
+loans_df = pd.DataFrame(loans_rows)
+
+if loans_df.empty:
+    st.info("No active loans found.")
+else:
+    loan = loans_df.iloc[0]
+
+    loan_balance = float(loan["current_balance"])
+    annual_rate = float(loan["interest_rate"]) / 100
+    monthly_rate = annual_rate / 12
+    minimum_payment = float(loan["minimum_payment"])
+    target_date = pd.to_datetime(loan["target_payoff_date"])
+
+    today = pd.Timestamp.today().normalize()
+    months_left = max((target_date.year - today.year) * 12 + (target_date.month - today.month), 1)
+
+    if monthly_rate > 0:
+        required_payment = loan_balance * monthly_rate / (1 - (1 + monthly_rate) ** (-months_left))
+    else:
+        required_payment = loan_balance / months_left
+
+    fixed_payment = st.number_input(
+        "Monthly payment you plan to make",
+        min_value=0.0,
+        value=float(minimum_payment),
+        step=50.0
+    )
+
+    balance = loan_balance
+    months = 0
+
+    while balance > 0 and months < 600:
+        interest = balance * monthly_rate
+        principal = fixed_payment - interest
+
+        if principal <= 0:
+            months = 600
+            break
+
+        balance -= principal
+        months += 1
+
+    projected_payoff_date = today + pd.DateOffset(months=months)
+
+    l1, l2, l3, l4 = st.columns(4)
+
+    l1.metric("Current Loan Balance", f"${loan_balance:,.2f}")
+    l2.metric("Required Monthly Payment", f"${required_payment:,.2f}")
+    l3.metric("Your Planned Payment", f"${fixed_payment:,.2f}")
+    l4.metric("Projected Payoff Date", projected_payoff_date.strftime("%b %Y"))
+
+    if fixed_payment >= required_payment:
+        st.success("You are on track to finish by your target payoff date.")
+    else:
+        st.warning("You are behind your target payoff pace. Increase monthly payment to finish by the target date.")
+
+    st.caption(
+        f"Target payoff date: {target_date.strftime('%b %Y')} | Months left: {months_left}"
+    )
+
 st.subheader("Spending by Category")
 category = df.groupby("category", dropna=False)["amount"].sum().reset_index()
 fig = px.bar(category, x="category", y="amount")
