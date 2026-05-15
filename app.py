@@ -81,6 +81,66 @@ else:
 
     st.plotly_chart(fig_subs, use_container_width=True)
 
+
+# -----------------------------
+# Safe to Spend Section
+# -----------------------------
+
+st.header("Safe to Spend")
+
+accounts_rows = supabase.table("accounts").select("*").execute().data
+accounts_df = pd.DataFrame(accounts_rows)
+
+goals_rows = supabase.table("financial_goals").select("*").eq("active", True).execute().data
+goals_df = pd.DataFrame(goals_rows)
+
+if accounts_df.empty:
+    st.warning("No account balances found.")
+else:
+    accounts_df["current_balance"] = pd.to_numeric(accounts_df["current_balance"], errors="coerce").fillna(0)
+
+    # For now, use all account balances as cash.
+    # Later we can separate checking/savings vs credit cards/loans.
+    total_cash = accounts_df["current_balance"].sum()
+
+    if goals_df.empty:
+        monthly_goals = 0
+    else:
+        goals_df["amount"] = pd.to_numeric(goals_df["amount"], errors="coerce").fillna(0)
+        monthly_goals = goals_df[goals_df["frequency"] == "monthly"]["amount"].sum()
+
+    safe_to_spend_month = total_cash - monthly_subscriptions - monthly_goals
+    safe_to_spend_week = safe_to_spend_month / 4
+    safe_to_spend_day = safe_to_spend_month / 30
+
+    s1, s2, s3, s4 = st.columns(4)
+
+    s1.metric("Cash Balance", f"${total_cash:,.2f}")
+    s2.metric("Safe This Month", f"${safe_to_spend_month:,.2f}")
+    s3.metric("Safe Per Week", f"${safe_to_spend_week:,.2f}")
+    s4.metric("Safe Per Day", f"${safe_to_spend_day:,.2f}")
+
+    st.subheader("Monthly Obligations")
+
+    obligations = []
+
+    if not subs_df.empty:
+        obligations.append({
+            "Name": "Subscriptions",
+            "Amount": monthly_subscriptions
+        })
+
+    if not goals_df.empty:
+        for _, row in goals_df.iterrows():
+            obligations.append({
+                "Name": row["goal_name"],
+                "Amount": row["amount"]
+            })
+
+    obligations_df = pd.DataFrame(obligations)
+
+    st.dataframe(obligations_df, use_container_width=True)
+
 st.subheader("Spending by Category")
 category = df.groupby("category", dropna=False)["amount"].sum().reset_index()
 fig = px.bar(category, x="category", y="amount")
