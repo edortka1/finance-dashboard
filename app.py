@@ -151,6 +151,62 @@ else:
     obligations_df = pd.DataFrame(obligations)
     st.dataframe(obligations_df, use_container_width=True)
 
+
+# -----------------------------
+# Paycheck Runway
+# -----------------------------
+
+st.header("Paycheck Runway")
+
+paycheck_rows = supabase.table("paychecks").select("*").eq("active", True).execute().data
+paycheck_df = pd.DataFrame(paycheck_rows)
+
+if paycheck_df.empty:
+    st.info("No active paycheck information found.")
+else:
+    paycheck_df["expected_amount"] = pd.to_numeric(
+        paycheck_df["expected_amount"],
+        errors="coerce"
+    ).fillna(0)
+
+    paycheck_df["next_pay_date"] = pd.to_datetime(
+        paycheck_df["next_pay_date"],
+        errors="coerce"
+    )
+
+    next_paycheck = paycheck_df.sort_values("next_pay_date").iloc[0]
+
+    today = pd.Timestamp.today().normalize()
+    next_pay_date = next_paycheck["next_pay_date"]
+    expected_paycheck = float(next_paycheck["expected_amount"])
+
+    days_until_paycheck = max((next_pay_date - today).days, 0)
+
+    monthly_obligations = monthly_subscriptions + monthly_goals + total_minimum_payment
+    daily_obligation_rate = monthly_obligations / 30
+
+    obligations_until_paycheck = daily_obligation_rate * days_until_paycheck
+
+    safe_until_paycheck = total_cash - obligations_until_paycheck
+
+    safe_per_day_until_paycheck = (
+        safe_until_paycheck / days_until_paycheck
+        if days_until_paycheck > 0
+        else safe_until_paycheck
+    )
+
+    p1, p2, p3, p4 = st.columns(4)
+
+    p1.metric("Days Until Paycheck", days_until_paycheck)
+    p2.metric("Next Paycheck Amount", f"${expected_paycheck:,.2f}")
+    p3.metric("Safe Until Paycheck", f"${safe_until_paycheck:,.2f}")
+    p4.metric("Safe Per Day Until Paycheck", f"${safe_per_day_until_paycheck:,.2f}")
+
+    st.caption(
+        f"Next paycheck date: {next_pay_date.strftime('%b %d, %Y')}"
+    )
+
+
 # -----------------------------
 # Credit Card Payment Pressure
 # -----------------------------
