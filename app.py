@@ -32,6 +32,55 @@ col1.metric("Total Spending", f"${total_spent:,.2f}")
 col2.metric("Transactions", transaction_count)
 col3.metric("Average Transaction", f"${avg_transaction:,.2f}")
 
+# -----------------------------
+# Subscriptions Section
+# -----------------------------
+
+st.header("Subscriptions")
+
+subs_rows = supabase.table("subscriptions").select("*").eq("active", True).execute().data
+subs_df = pd.DataFrame(subs_rows)
+
+if subs_df.empty:
+    st.info("No active subscriptions found.")
+else:
+    subs_df["amount"] = pd.to_numeric(subs_df["amount"])
+    subs_df["next_payment_date"] = pd.to_datetime(subs_df["next_payment_date"], errors="coerce")
+
+    monthly_subscriptions = subs_df[subs_df["frequency"] == "monthly"]["amount"].sum()
+    yearly_subscriptions = monthly_subscriptions * 12
+    active_subscription_count = len(subs_df)
+
+    sub_col1, sub_col2, sub_col3 = st.columns(3)
+
+    sub_col1.metric("Monthly Subscriptions", f"${monthly_subscriptions:,.2f}")
+    sub_col2.metric("Yearly Subscription Cost", f"${yearly_subscriptions:,.2f}")
+    sub_col3.metric("Active Subscriptions", active_subscription_count)
+
+    st.subheader("Upcoming Subscription Payments")
+
+    upcoming_subs = subs_df.sort_values("next_payment_date")
+
+    st.dataframe(
+        upcoming_subs[
+            ["name", "amount", "frequency", "next_payment_date", "category", "essential", "notes"]
+        ],
+        use_container_width=True
+    )
+
+    st.subheader("Subscriptions by Category")
+
+    subs_by_category = subs_df.groupby("category")["amount"].sum().reset_index()
+
+    fig_subs = px.bar(
+        subs_by_category,
+        x="category",
+        y="amount",
+        title="Monthly Subscriptions by Category"
+    )
+
+    st.plotly_chart(fig_subs, use_container_width=True)
+
 st.subheader("Spending by Category")
 category = df.groupby("category", dropna=False)["amount"].sum().reset_index()
 fig = px.bar(category, x="category", y="amount")
