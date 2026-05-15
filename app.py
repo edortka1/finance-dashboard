@@ -450,6 +450,39 @@ else:
     projected_payoff_date = today + pd.DateOffset(months=months)
     extra_needed = required_payment - fixed_payment
 
+
+    original_balance = st.number_input(
+    "Original loan balance",
+    min_value=0.0,
+    value=float(47149.93),
+    step=100.0
+    )
+    
+    paid_off_amount = original_balance - loan_balance
+    
+    paid_off_percent = (
+        paid_off_amount / original_balance
+        if original_balance > 0
+        else 0
+    )
+    
+    months_remaining = months
+    
+    target_status = "On Track" if fixed_payment >= required_payment else "Behind"
+    
+    progress_col1, progress_col2, progress_col3 = st.columns(3)
+    
+    progress_col1.metric("Amount Paid Off", f"${paid_off_amount:,.2f}")
+    progress_col2.metric("Loan Paid Off %", f"{paid_off_percent:.1%}")
+    progress_col3.metric("Months Remaining", months_remaining)
+    
+    st.progress(min(max(paid_off_percent, 0), 1))
+    
+    if target_status == "On Track":
+        st.success("Loan Freedom Status: On Track")
+    else:
+        st.warning("Loan Freedom Status: Behind Target")
+
     l1, l2, l3, l4, l5 = st.columns(5)
 
     l1.metric("Current Loan Balance", f"${loan_balance:,.2f}")
