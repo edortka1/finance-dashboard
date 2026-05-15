@@ -44,6 +44,9 @@ subs_rows = supabase.table("subscriptions").select("*").eq("active", True).execu
 subs_df = pd.DataFrame(subs_rows)
 
 monthly_subscriptions = 0
+monthly_goals = 0
+total_cash = 0
+total_minimum_payment = 0
 
 if subs_df.empty:
     st.info("No active subscriptions found.")
