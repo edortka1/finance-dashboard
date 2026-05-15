@@ -197,21 +197,20 @@ else:
 
     projected_payoff_date = today + pd.DateOffset(months=months)
 
-    l1, l2, l3, l4 = st.columns(4)
-
+    extra_needed = required_payment - fixed_payment
+    
+    l1, l2, l3, l4, l5 = st.columns(5)
+    
     l1.metric("Current Loan Balance", f"${loan_balance:,.2f}")
     l2.metric("Required Monthly Payment", f"${required_payment:,.2f}")
     l3.metric("Your Planned Payment", f"${fixed_payment:,.2f}")
-    l4.metric("Projected Payoff Date", projected_payoff_date.strftime("%b %Y"))
-
-    if fixed_payment >= required_payment:
-        st.success("You are on track to finish by your target payoff date.")
+    
+    if extra_needed > 0:
+        l4.metric("Extra Needed / Month", f"${extra_needed:,.2f}")
     else:
-        st.warning("You are behind your target payoff pace. Increase monthly payment to finish by the target date.")
-
-    st.caption(
-        f"Target payoff date: {target_date.strftime('%b %Y')} | Months left: {months_left}"
-    )
+        l4.metric("Ahead by / Month", f"${abs(extra_needed):,.2f}")
+    
+    l5.metric("Projected Payoff Date", projected_payoff_date.strftime("%b %Y"))
 
 st.subheader("Spending by Category")
 category = df.groupby("category", dropna=False)["amount"].sum().reset_index()
