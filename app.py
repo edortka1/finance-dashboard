@@ -101,7 +101,11 @@ else:
 
     # For now, use all account balances as cash.
     # Later we can separate checking/savings vs credit cards/loans.
-    total_cash = accounts_df["current_balance"].sum()
+    cash_accounts = accounts_df[
+    accounts_df["subtype"].isin(["checking", "savings"])
+]
+
+total_cash = cash_accounts["current_balance"].sum()
 
     if goals_df.empty:
         monthly_goals = 0
