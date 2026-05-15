@@ -253,6 +253,92 @@ if variable_spending > fixed_amount:
 else:
     st.success("Your variable spending is currently lower than your fixed obligations.")
 
+
+
+# -----------------------------
+# Category Budgets
+# -----------------------------
+
+st.header("Category Budgets")
+
+budget_rows = supabase.table("category_budgets").select("*").eq("active", True).execute().data
+budget_df = pd.DataFrame(budget_rows)
+
+if budget_df.empty:
+    st.info("No category budgets found.")
+else:
+    budget_df["monthly_limit"] = pd.to_numeric(
+        budget_df["monthly_limit"],
+        errors="coerce"
+    ).fillna(0)
+
+    spending_by_category = df.groupby("category", dropna=False)["amount"].sum().reset_index()
+    spending_by_category = spending_by_category.rename(
+        columns={
+            "category": "category_name",
+            "amount": "spent"
+        }
+    )
+
+    budget_status = budget_df.merge(
+        spending_by_category,
+        on="category_name",
+        how="left"
+    )
+
+    budget_status["spent"] = budget_status["spent"].fillna(0)
+    budget_status["remaining"] = budget_status["monthly_limit"] - budget_status["spent"]
+    budget_status["used_percent"] = budget_status.apply(
+        lambda row: row["spent"] / row["monthly_limit"] if row["monthly_limit"] > 0 else 0,
+        axis=1
+    )
+
+    b1, b2, b3 = st.columns(3)
+
+    b1.metric("Total Budget Limit", f"${budget_status['monthly_limit'].sum():,.2f}")
+    b2.metric("Total Budget Spent", f"${budget_status['spent'].sum():,.2f}")
+    b3.metric("Budget Remaining", f"${budget_status['remaining'].sum():,.2f}")
+
+    st.subheader("Budget vs Actual")
+
+    st.dataframe(
+        budget_status[
+            [
+                "category_name",
+                "monthly_limit",
+                "spent",
+                "remaining",
+                "used_percent"
+            ]
+        ],
+        use_container_width=True
+    )
+
+    fig_budget = px.bar(
+        budget_status,
+        x="category_name",
+        y=["monthly_limit", "spent"],
+        barmode="group",
+        title="Budget vs Actual Spending"
+    )
+
+    st.plotly_chart(
+        fig_budget,
+        use_container_width=True,
+        key="category_budget_chart"
+    )
+
+    over_budget = budget_status[budget_status["remaining"] < 0]
+
+    if not over_budget.empty:
+        st.warning("Some categories are over budget.")
+        st.dataframe(
+            over_budget[["category_name", "monthly_limit", "spent", "remaining"]],
+            use_container_width=True
+        )
+    else:
+        st.success("All tracked categories are within budget.")
+
 # -----------------------------
 # Loan Payoff Planner
 # -----------------------------
