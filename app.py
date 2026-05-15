@@ -146,6 +146,72 @@ else:
     st.dataframe(obligations_df, use_container_width=True)
 
 
+
+# -----------------------------
+# Credit Card Payment Pressure
+# -----------------------------
+
+st.header("Credit Card Payment Pressure")
+
+cards_rows = supabase.table("credit_cards").select("*").eq("active", True).execute().data
+cards_df = pd.DataFrame(cards_rows)
+
+if cards_df.empty:
+    st.info("No active credit cards found.")
+else:
+    cards_df["current_balance"] = pd.to_numeric(cards_df["current_balance"], errors="coerce").fillna(0)
+    cards_df["statement_balance"] = pd.to_numeric(cards_df["statement_balance"], errors="coerce").fillna(0)
+    cards_df["credit_limit"] = pd.to_numeric(cards_df["credit_limit"], errors="coerce").fillna(0)
+    cards_df["minimum_payment"] = pd.to_numeric(cards_df["minimum_payment"], errors="coerce").fillna(0)
+    cards_df["payment_due_date"] = pd.to_datetime(cards_df["payment_due_date"], errors="coerce")
+
+    total_card_balance = cards_df["current_balance"].sum()
+    total_statement_balance = cards_df["statement_balance"].sum()
+    total_minimum_payment = cards_df["minimum_payment"].sum()
+    total_credit_limit = cards_df["credit_limit"].sum()
+
+    utilization = 0
+    if total_credit_limit > 0:
+        utilization = total_card_balance / total_credit_limit
+
+    c1, c2, c3, c4 = st.columns(4)
+
+    c1.metric("Total Card Balance", f"${total_card_balance:,.2f}")
+    c2.metric("Statement Balance", f"${total_statement_balance:,.2f}")
+    c3.metric("Minimum Payments", f"${total_minimum_payment:,.2f}")
+    c4.metric("Utilization", f"{utilization:.1%}")
+
+    st.subheader("Credit Cards")
+
+    display_cards = cards_df.copy()
+    display_cards["utilization"] = display_cards.apply(
+        lambda row: row["current_balance"] / row["credit_limit"] if row["credit_limit"] > 0 else 0,
+        axis=1
+    )
+
+    st.dataframe(
+        display_cards[
+            [
+                "card_name",
+                "current_balance",
+                "statement_balance",
+                "credit_limit",
+                "utilization",
+                "payment_due_date",
+                "minimum_payment",
+            ]
+        ],
+        use_container_width=True
+    )
+
+    if utilization >= 0.30:
+        st.warning("Your credit utilization is above 30%. Consider paying cards down if credit score matters right now.")
+    elif utilization >= 0.10:
+        st.info("Your utilization is moderate. Under 10% is usually better for credit score optimization.")
+    else:
+        st.success("Your credit utilization is low.")
+
+
 # -----------------------------
 # Loan Payoff Planner
 # -----------------------------
